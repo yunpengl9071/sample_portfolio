@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Portfolio - Bristol Myers Squibb</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Trebuchet+MS&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Menu -->
+    <nav class="nav-menu">
+        <div class="menu-toggle" id="menuToggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="menu-overlay" id="menuOverlay">
+            <div class="menu-items">
+                <a href="#mission" class="menu-item">Team Mission</a>
+                <a href="#projects" class="menu-item">Key Projects</a>
+                <a href="#success-stories" class="menu-item">Success Stories</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mission Section -->
+    <section id="mission" class="section mission-section">
+        <div class="container">
+            <div class="mission-content">
+                <div class="mission-text">
+                    <h1>Our Team Mission</h1>
+                    <p>Advancing clinical development through innovative data analytics and strategic insights, transforming patient outcomes and accelerating breakthrough therapies to market.</p>
+                    <p>We leverage cutting-edge technology and deep therapeutic expertise to drive evidence-based decision making across the clinical development lifecycle.</p>
+                </div>
+                <div class="mission-image">
+                    <div class="image-placeholder">
+                        <span>Team Mission Image</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Projects Section -->
+    <section id="projects" class="section projects-section">
+        <div class="container">
+            <h2>Analytics Throughout Clinical Development</h2>
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="scroll-indicator">
+                        <span>Scroll right to see full timeline →</span>
+                    </div>
+                    <div class="coverage-legend">
+                        <div class="legend-item">
+                            <div class="coverage-indicator filled"></div>
+                            <span>Team Coverage</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="coverage-indicator empty"></div>
+                            <span>Planned Coverage</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline">
+                    <div class="timeline-line"></div>
+                    
+                    <!-- Tech Review/pre-DCS Milestone -->
+                    <div class="timeline-item" data-stage="tech-review">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">Tech Review/pre-DCS</div>
+                        <div class="project-dropdown">
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Dolor Sit Analysis</h4>
+                                    <p>Lorem ipsum dolor sit amet consectetur adipiscing elit</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Amet Consectetur</h4>
+                                    <p>Sed do eiusmod tempor incididunt ut labore</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DCS Milestone -->
+                    <div class="timeline-item" data-stage="dcs">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">DCS</div>
+                        <div class="project-dropdown">
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Elit Sed Modeling</h4>
+                                    <p>Ut enim ad minim veniam quis nostrud exercitation</p>
+                                </div>
+                            </div>
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Veniam Assessment</h4>
+                                    <p>Ullamco laboris nisi ut aliquip ex ea commodo</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stable Protocol Draft Milestone -->
+                    <div class="timeline-item" data-stage="stable-protocol">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">Stable Protocol Draft</div>
+                        <div class="project-dropdown">
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Consequat Duis</h4>
+                                    <p>Duis aute irure dolor in reprehenderit voluptate</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Velit Esse Analysis</h4>
+                                    <p>Cillum dolore eu fugiat nulla pariatur</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Excepteur Sint</h4>
+                                    <p>Excepteur sint occaecat cupidatat non proident</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- REDOC/CDOC Decision Point -->
+                    <div class="timeline-item decision" data-stage="redoc-cdoc">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">REDOC/CDOC Decision</div>
+                    </div>
+
+                    <!-- Published Protocol Draft Milestone -->
+                    <div class="timeline-item" data-stage="published-protocol">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">Published Protocol Draft</div>
+                        <div class="project-dropdown">
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Sunt In Culpa</h4>
+                                    <p>Sunt in culpa qui officia deserunt mollit anim</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Laborum Et Dolorum</h4>
+                                    <p>Et dolorum fuga et harum quidem rerum facilis</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Expedita Distinctio</h4>
+                                    <p>Nam libero tempore cum soluta nobis eligendi</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FPFV Milestone -->
+                    <div class="timeline-item" data-stage="fpfv">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">FPFV</div>
+                        <div class="project-dropdown">
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Optio Cumque</h4>
+                                    <p>Optio cumque nihil impedit quo minus maxime</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Placeat Facere</h4>
+                                    <p>Placeat facere possimus omnis voluptas assumenda</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LPFV Milestone -->
+                    <div class="timeline-item" data-stage="lpfv">
+                        <div class="timeline-shape"></div>
+                        <div class="timeline-tooltip">LPFV</div>
+                        <div class="project-dropdown">
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Repellendus Temporibus</h4>
+                                    <p>Temporibus autem quibusdam officiis debitis aut</p>
+                                </div>
+                            </div>
+                            <div class="project-item team-coverage">
+                                <div class="coverage-indicator filled"></div>
+                                <div>
+                                    <h4>Maiores Alias</h4>
+                                    <p>Maiores alias consequatur aut perferendis doloribus</p>
+                                </div>
+                            </div>
+                            <div class="project-item planned-coverage">
+                                <div class="coverage-indicator empty"></div>
+                                <div>
+                                    <h4>Asperiores Repellat</h4>
+                                    <p>Asperiores repellat mollitia animi id est laborum</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Success Stories Section -->
+    <section id="success-stories" class="section success-section">
+        <div class="container">
+            <h2>Success Stories</h2>
+            <div class="success-grid">
+                <div class="success-card">
+                    <h3>Accelerated Oncology Approval</h3>
+                    <p>Reduced clinical timeline by 18 months through predictive modeling and adaptive trial design.</p>
+                    <a href="success-story-1.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+                <div class="success-card">
+                    <h3>Cardiovascular Biomarker Breakthrough</h3>
+                    <p>Identified novel prognostic markers leading to personalized treatment protocols.</p>
+                    <a href="success-story-2.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+                <div class="success-card">
+                    <h3>Immunology Patient Stratification</h3>
+                    <p>Developed AI-driven patient selection criteria improving trial success rate by 40%.</p>
+                    <a href="success-story-3.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+                <div class="success-card">
+                    <h3>Rare Disease Digital Endpoint</h3>
+                    <p>Created digital biomarkers enabling remote monitoring in pediatric rare disease trials.</p>
+                    <a href="success-story-4.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+                <div class="success-card">
+                    <h3>Regulatory Science Innovation</h3>
+                    <p>Pioneered model-informed drug development approach adopted by FDA guidance.</p>
+                    <a href="success-story-5.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+                <div class="success-card">
+                    <h3>Global Health Initiative</h3>
+                    <p>Deployed analytics platform in emerging markets improving access to essential medicines.</p>
+                    <a href="success-story-6.html" target="_blank" class="success-link">Read Full Story →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>
