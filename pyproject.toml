@@ -1,0 +1,95 @@
+[tool.poetry]
+name = "trialsense-ai"
+version = "0.1.0"
+description = "Agentic AI system for clinical trial intelligence using LangGraph"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "trialsense"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.1.0"
+langgraph = "^0.0.40"
+langchain-openai = "^0.0.5"
+langchain-anthropic = "^0.1.0"
+langsmith = "^0.0.77"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+streamlit = "^1.31.0"
+plotly = "^5.18.0"
+pandas = "^2.2.0"
+polars = "^0.20.0"
+duckdb = "^0.10.0"
+chromadb = "^0.4.22"
+sentence-transformers = "^2.3.0"
+xgboost = "^2.0.3"
+lightgbm = "^4.3.0"
+shap = "^0.44.0"
+scikit-learn = "^1.4.0"
+optuna = "^3.5.0"
+httpx = "^0.26.0"
+redis = "^5.0.1"
+celery = "^5.3.6"
+aiofiles = "^23.2.1"
+python-multipart = "^0.0.9"
+jinja2 = "^3.1.3"
+pyyaml = "^6.0.1"
+python-dotenv = "^1.0.1"
+tenacity = "^8.2.3"
+tiktoken = "^0.5.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+black = "^24.1.0"
+ruff = "^0.2.0"
+mypy = "^1.8.0"
+pre-commit = "^3.6.0"
+ipython = "^8.21.0"
+jupyter = "^1.0.0"
+notebook = "^7.0.7"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=trialsense --cov-report=html --cov-report=term-missing"
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
