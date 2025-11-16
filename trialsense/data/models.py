@@ -4,7 +4,7 @@ from datetime import date
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class TrialPhase(str, Enum):
@@ -115,9 +115,9 @@ class ClinicalTrial(BaseModel):
     # Calculated fields
     has_results: bool = False
 
-    class Config:
-        """Pydantic config."""
-        use_enum_values = True
-        json_encoders = {
+    model_config = ConfigDict(
+        use_enum_values=True,
+        json_encoders={
             date: lambda v: v.isoformat() if v else None,
-        }
+        },
+    )
