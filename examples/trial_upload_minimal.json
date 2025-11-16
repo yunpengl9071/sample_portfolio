@@ -1,0 +1,24 @@
+{
+  "title": "Phase 2 Study of Targeted Therapy in Metastatic Breast Cancer",
+  "brief_summary": "Evaluating a novel targeted therapy in HER2-positive metastatic breast cancer patients",
+  "phase": "PHASE_2",
+  "enrollment": 120,
+  "study_type": "INTERVENTIONAL",
+  "conditions": [
+    {
+      "name": "Metastatic Breast Cancer"
+    }
+  ],
+  "interventions": [
+    {
+      "type": "DRUG",
+      "name": "Experimental HER2 Inhibitor",
+      "description": "Novel small molecule HER2 inhibitor"
+    }
+  ],
+  "eligibility_criteria": "Adults with HER2+ metastatic breast cancer, ECOG 0-2, adequate organ function",
+  "primary_outcome": {
+    "measure": "Objective Response Rate",
+    "time_frame": "12 months"
+  }
+}

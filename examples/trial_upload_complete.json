@@ -1,0 +1,94 @@
+{
+  "title": "A Phase 3, Randomized, Double-Blind Study of Novel Immunotherapy in Advanced NSCLC",
+  "brief_summary": "This study evaluates the efficacy and safety of a novel PD-L1 inhibitor compared to standard chemotherapy in patients with advanced non-small cell lung cancer who have progressed after first-line therapy.",
+  "phase": "PHASE_3",
+  "enrollment": 340,
+  "study_type": "INTERVENTIONAL",
+  "allocation": "RANDOMIZED",
+  "masking": "DOUBLE",
+  "sponsor": {
+    "name": "Acme Pharmaceuticals Inc.",
+    "type": "INDUSTRY"
+  },
+  "collaborators": [
+    {"name": "Memorial Sloan Kettering Cancer Center"},
+    {"name": "Dana-Farber Cancer Institute"}
+  ],
+  "conditions": [
+    {
+      "name": "Non-Small Cell Lung Cancer"
+    },
+    {
+      "name": "Advanced Solid Tumors"
+    }
+  ],
+  "interventions": [
+    {
+      "type": "DRUG",
+      "name": "ACM-001 (Novel PD-L1 Inhibitor)",
+      "description": "Experimental immunotherapy agent targeting PD-L1 pathway"
+    },
+    {
+      "type": "DRUG",
+      "name": "Docetaxel",
+      "description": "Standard chemotherapy control arm"
+    }
+  ],
+  "locations": [
+    {
+      "facility": "Johns Hopkins Sidney Kimmel Comprehensive Cancer Center",
+      "city": "Baltimore",
+      "state": "MD",
+      "country": "USA"
+    },
+    {
+      "facility": "MD Anderson Cancer Center",
+      "city": "Houston",
+      "state": "TX",
+      "country": "USA"
+    },
+    {
+      "facility": "Memorial Sloan Kettering Cancer Center",
+      "city": "New York",
+      "state": "NY",
+      "country": "USA"
+    },
+    {
+      "facility": "Dana-Farber Cancer Institute",
+      "city": "Boston",
+      "state": "MA",
+      "country": "USA"
+    },
+    {
+      "facility": "UCSF Helen Diller Family Comprehensive Cancer Center",
+      "city": "San Francisco",
+      "state": "CA",
+      "country": "USA"
+    }
+  ],
+  "eligibility_criteria": "Inclusion Criteria:\n- Age 18 years or older\n- Histologically or cytologically confirmed NSCLC\n- Stage IIIB/IV disease not amenable to curative therapy\n- Progression after platinum-based first-line chemotherapy\n- ECOG performance status 0-1\n- Adequate organ function\n- PD-L1 tumor proportion score ≥1%\n\nExclusion Criteria:\n- Active brain metastases\n- Prior immunotherapy with anti-PD-1/PD-L1 agents\n- Active autoimmune disease\n- Uncontrolled intercurrent illness\n- Pregnant or breastfeeding",
+  "minimum_age": "18 years",
+  "maximum_age": "85 years",
+  "primary_outcome": {
+    "measure": "Overall Survival",
+    "time_frame": "From randomization until death from any cause, assessed up to 36 months"
+  },
+  "secondary_outcomes": [
+    {
+      "measure": "Progression-Free Survival",
+      "time_frame": "From randomization until disease progression or death, assessed up to 24 months"
+    },
+    {
+      "measure": "Objective Response Rate",
+      "time_frame": "Assessed at 6, 12, and 18 months"
+    },
+    {
+      "measure": "Duration of Response",
+      "time_frame": "From first response until progression, assessed up to 24 months"
+    },
+    {
+      "measure": "Safety and Tolerability (Adverse Events)",
+      "time_frame": "From first dose until 90 days after last dose"
+    }
+  ]
+}

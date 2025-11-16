@@ -1,6 +1,6 @@
 """ML model for predicting clinical trial outcomes."""
 
-from typing import Optional, Any
+from typing import Optional, Any, Union, Dict
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -11,6 +11,7 @@ import xgboost as xgb
 import shap
 
 from trialsense.data.models import ClinicalTrial, TrialPhase, TrialStatus
+from trialsense.models.feature_engineer import FeatureEngineer
 from trialsense.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -53,18 +54,22 @@ class OutcomePredictor:
         >>> result = predictor.predict(trial)  # Returns heuristic estimate
     """
 
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None, schema_path: Optional[str] = None):
         """
         Initialize the outcome predictor.
 
         Args:
             model_path: Path to saved model file (optional)
+            schema_path: Path to feature schema JSON (optional)
         """
         self.model: Optional[xgb.XGBClassifier] = None
         self.explainer: Optional[shap.TreeExplainer] = None
         self.feature_names: list[str] = []
         self.label_encoders: dict[str, LabelEncoder] = {}
         self.is_trained = False
+
+        # Initialize feature engineer
+        self.feature_engineer = FeatureEngineer(schema_path=schema_path)
 
         if model_path and Path(model_path).exists():
             self.load(model_path)
@@ -305,12 +310,13 @@ class OutcomePredictor:
         """
         logger.info(f"Training on {len(trials)} trials")
 
-        # Extract features
-        features_list = [self._extract_features(t) for t in trials]
-        X = np.array([
-            self._prepare_features_for_model(f, fit=True) for f in features_list
-        ])
+        # Extract features using FeatureEngineer
+        features_list = [self.feature_engineer.extract_features(t) for t in trials]
+        X, feature_names = self.feature_engineer.to_numpy(features_list)
         y = np.array(labels)
+
+        # Store feature names
+        self.feature_names = feature_names
 
         # Split data
         split_idx = int(len(X) * (1 - validation_split))
@@ -340,14 +346,19 @@ class OutcomePredictor:
         logger.info(f"Training complete: {metrics}")
         return metrics
 
-    def predict(self, trial: ClinicalTrial) -> PredictionResult:
+    def predict(
+        self,
+        trial: Union[ClinicalTrial, Dict[str, Any]],
+        user_inputs: Optional[Dict[str, Any]] = None
+    ) -> PredictionResult:
         """
         Predict outcome for a trial (FAST - <0.1 seconds).
 
         This runs on every user query. No training happens here!
 
         Args:
-            trial: ClinicalTrial object
+            trial: ClinicalTrial object OR feature dictionary
+            user_inputs: Optional user-provided values for missing features
 
         Returns:
             PredictionResult with probability and explanations
@@ -355,18 +366,43 @@ class OutcomePredictor:
         if not self.model:
             raise ValueError("Model not initialized")
 
+        # Extract features using FeatureEngineer
+        if isinstance(trial, ClinicalTrial):
+            # Path A: Existing trial - extract from ClinicalTrial object
+            features = self.feature_engineer.extract_features(trial, user_inputs)
+        elif isinstance(trial, dict):
+            # Path B: New trial - extract from partial data
+            features = self.feature_engineer.extract_features_partial(trial, user_inputs)
+        else:
+            raise ValueError(f"Trial must be ClinicalTrial or dict, got {type(trial)}")
+
         # If model not trained, return heuristic prediction
         if not self.is_trained:
             logger.debug("Using heuristic prediction (model not trained)")
-            return self._default_prediction(trial)
+            # For heuristic mode, need a ClinicalTrial object
+            if isinstance(trial, ClinicalTrial):
+                return self._default_prediction(trial)
+            else:
+                # Create minimal trial object for heuristic prediction
+                from trialsense.data.trial_parser import TrialParser
+                parser = TrialParser()
+                trial_obj = parser.create_trial_object(trial)
+                return self._default_prediction(trial_obj)
 
-        # Extract and prepare features (fast)
-        features = self._extract_features(trial)
-        X = self._prepare_features_for_model(features, fit=False)
-        X_reshaped = X.reshape(1, -1)
+        # Validate features are complete
+        missing = self.feature_engineer.validate_features(features)
+        if missing:
+            raise ValueError(
+                f"Missing required features: {missing}. "
+                f"Please provide these via user_inputs parameter."
+            )
+
+        # Prepare features for model input
+        X, feature_names = self.feature_engineer.to_numpy([features])
+        self.feature_names = feature_names  # Update feature names
 
         # Predict probability (very fast)
-        proba = self.model.predict_proba(X_reshaped)[0][1]
+        proba = self.model.predict_proba(X)[0][1]
 
         # Calculate confidence interval
         ci_width = 0.1
@@ -378,7 +414,7 @@ class OutcomePredictor:
         feature_importance = {}
 
         if self.explainer:
-            shap_values = self.explainer.shap_values(X_reshaped)[0]
+            shap_values = self.explainer.shap_values(X)[0]
             feature_importance = dict(zip(
                 self.feature_names,
                 shap_values.tolist()
@@ -400,6 +436,39 @@ class OutcomePredictor:
             risk_factors=risk_factors,
             positive_factors=positive_factors,
         )
+
+    def get_missing_features(
+        self,
+        trial: Union[ClinicalTrial, Dict[str, Any]],
+        user_inputs: Optional[Dict[str, Any]] = None
+    ) -> tuple[list[str], Dict[str, Dict]]:
+        """
+        Check which features are missing for prediction.
+
+        Useful for prompting users to provide missing information.
+
+        Args:
+            trial: ClinicalTrial object OR feature dictionary
+            user_inputs: Optional user-provided values
+
+        Returns:
+            Tuple of (missing_feature_names, prompts_dict)
+        """
+        # Extract features
+        if isinstance(trial, ClinicalTrial):
+            features = self.feature_engineer.extract_features(trial, user_inputs)
+        elif isinstance(trial, dict):
+            features = self.feature_engineer.extract_features_partial(trial, user_inputs)
+        else:
+            raise ValueError(f"Trial must be ClinicalTrial or dict, got {type(trial)}")
+
+        # Validate completeness
+        missing = self.feature_engineer.validate_features(features)
+
+        # Generate prompts for missing features
+        prompts = self.feature_engineer.generate_prompts(missing) if missing else {}
+
+        return missing, prompts
 
     def _identify_factors(
         self,
