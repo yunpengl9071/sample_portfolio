@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+"""
+Script to train the outcome prediction model on historical trial data.
+
+This is a template that would be populated with real data in production.
+"""
+
+import asyncio
+from pathlib import Path
+from datetime import datetime
+
+from trialsense.data.clinical_trials_client import ClinicalTrialsClient
+from trialsense.data.models import TrialPhase, TrialStatus
+from trialsense.models.outcome_predictor import OutcomePredictor
+from trialsense.utils.logging import setup_logging, get_logger
+
+logger = get_logger(__name__)
+
+
+async def fetch_training_data(max_trials: int = 1000) -> tuple[list, list]:
+    """
+    Fetch historical trials for training.
+
+    In production, this would:
+    1. Query completed trials with known outcomes
+    2. Label trials as success (1) or failure (0)
+    3. Handle class imbalance
+
+    Args:
+        max_trials: Maximum number of trials to fetch
+
+    Returns:
+        Tuple of (trials, labels)
+    """
+    logger.info(f"Fetching up to {max_trials} trials for training...")
+
+    trials = []
+    labels = []
+
+    async with ClinicalTrialsClient() as client:
+        # Fetch completed Phase 3 trials (most likely to have outcomes)
+        completed_trials = await client.search_trials(
+            phase=[TrialPhase.PHASE_3],
+            status=[TrialStatus.COMPLETED],
+            max_results=max_trials,
+        )
+
+        logger.info(f"Fetched {len(completed_trials)} completed trials")
+
+        for trial in completed_trials:
+            trials.append(trial)
+
+            # In production: Label based on actual outcomes
+            # For now, use has_results as proxy (imperfect but demonstrates concept)
+            label = 1 if trial.has_results else 0
+            labels.append(label)
+
+    success_rate = sum(labels) / len(labels) if labels else 0
+    logger.info(f"Training data: {len(trials)} trials, {success_rate:.1%} success rate")
+
+    return trials, labels
+
+
+def train_and_save_model(trials: list, labels: list, model_path: str = "models/outcome_model.json"):
+    """
+    Train the outcome prediction model and save it.
+
+    Args:
+        trials: List of ClinicalTrial objects
+        labels: Binary labels (1=success, 0=failure)
+        model_path: Path to save trained model
+    """
+    logger.info("Training outcome prediction model...")
+
+    # Initialize predictor
+    predictor = OutcomePredictor()
+
+    # Train with validation split
+    metrics = predictor.train(
+        trials=trials,
+        labels=labels,
+        validation_split=0.2,
+    )
+
+    logger.info(f"Training metrics: {metrics}")
+
+    # Save model
+    Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+    predictor.save(model_path)
+
+    logger.info(f"Model saved to {model_path}")
+
+    return predictor, metrics
+
+
+def evaluate_model(predictor: OutcomePredictor, test_trials: list, test_labels: list):
+    """
+    Evaluate model performance on test set.
+
+    Args:
+        predictor: Trained model
+        test_trials: Test trials
+        test_labels: Test labels
+    """
+    logger.info("Evaluating model...")
+
+    predictions = []
+    probabilities = []
+
+    for trial in test_trials:
+        result = predictor.predict(trial)
+        probabilities.append(result.success_probability)
+        predictions.append(1 if result.success_probability > 0.5 else 0)
+
+    # Calculate metrics
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
+
+    accuracy = accuracy_score(test_labels, predictions)
+    precision = precision_score(test_labels, predictions, zero_division=0)
+    recall = recall_score(test_labels, predictions, zero_division=0)
+    auc = roc_auc_score(test_labels, probabilities)
+
+    logger.info("Test Set Metrics:")
+    logger.info(f"  Accuracy:  {accuracy:.3f}")
+    logger.info(f"  Precision: {precision:.3f}")
+    logger.info(f"  Recall:    {recall:.3f}")
+    logger.info(f"  AUC-ROC:   {auc:.3f}")
+
+    return {
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "auc": auc,
+    }
+
+
+async def main():
+    """Main training pipeline."""
+    setup_logging()
+
+    logger.info("="*80)
+    logger.info("TrialSense AI - Model Training Pipeline")
+    logger.info("="*80)
+
+    # 1. Fetch training data
+    logger.info("\n[1/4] Fetching training data...")
+    trials, labels = await fetch_training_data(max_trials=500)
+
+    if len(trials) < 50:
+        logger.warning("Insufficient training data. Consider fetching more trials.")
+        return
+
+    # 2. Split into train/test
+    logger.info("\n[2/4] Splitting data...")
+    split_idx = int(len(trials) * 0.8)
+    train_trials = trials[:split_idx]
+    train_labels = labels[:split_idx]
+    test_trials = trials[split_idx:]
+    test_labels = labels[split_idx:]
+
+    logger.info(f"  Train: {len(train_trials)} trials")
+    logger.info(f"  Test:  {len(test_trials)} trials")
+
+    # 3. Train model
+    logger.info("\n[3/4] Training model...")
+    predictor, train_metrics = train_and_save_model(
+        trials=train_trials,
+        labels=train_labels,
+    )
+
+    # 4. Evaluate
+    logger.info("\n[4/4] Evaluating model...")
+    test_metrics = evaluate_model(predictor, test_trials, test_labels)
+
+    # Summary
+    logger.info("\n" + "="*80)
+    logger.info("Training Complete!")
+    logger.info("="*80)
+    logger.info(f"Model saved to: models/outcome_model.json")
+    logger.info(f"Training samples: {len(train_trials)}")
+    logger.info(f"Test AUC: {test_metrics['auc']:.3f}")
+    logger.info(f"Timestamp: {datetime.now().isoformat()}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
