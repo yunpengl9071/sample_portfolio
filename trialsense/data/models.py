@@ -112,6 +112,9 @@ class ClinicalTrial(BaseModel):
     detailed_description: Optional[str] = None
     keywords: list[str] = Field(default_factory=list)
 
+    # Termination information
+    why_stopped: Optional[str] = None  # Reason for early termination
+
     # Calculated fields
     has_results: bool = False
 

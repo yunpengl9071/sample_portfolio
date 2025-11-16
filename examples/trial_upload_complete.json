@@ -87,8 +87,15 @@
       "time_frame": "From first response until progression, assessed up to 24 months"
     },
     {
+      "measure": "Quality of Life (EORTC QLQ-C30)",
+      "time_frame": "Assessed at baseline and every 6 weeks until progression"
+    },
+    {
       "measure": "Safety and Tolerability (Adverse Events)",
       "time_frame": "From first dose until 90 days after last dose"
     }
-  ]
+  ],
+  "has_adaptive_design": false,
+  "biomarker_driven": true,
+  "has_patient_reported_outcomes": true
 }

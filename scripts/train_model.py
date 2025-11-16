@@ -21,6 +21,7 @@ import pickle
 from trialsense.data.clinical_trials_client import ClinicalTrialsClient
 from trialsense.data.models import TrialPhase, TrialStatus
 from trialsense.models.outcome_predictor import OutcomePredictor
+from trialsense.models.outcome_labeling import determine_outcome, log_labeling_report
 from trialsense.utils.logging import setup_logging, get_logger
 
 logger = get_logger(__name__)
@@ -43,29 +44,47 @@ async def fetch_training_data(max_trials: int = 1000) -> tuple[list, list]:
     """
     logger.info(f"Fetching up to {max_trials} trials for training...")
 
+    async with ClinicalTrialsClient() as client:
+        # Fetch trials from multiple phases and statuses
+        # Include both completed and terminated to get diverse outcomes
+        all_trials = []
+
+        # Fetch completed Phase 2 and 3 trials (most reliable outcome data)
+        for phase in [TrialPhase.PHASE_2, TrialPhase.PHASE_3]:
+            completed = await client.search_trials(
+                phase=[phase],
+                status=[TrialStatus.COMPLETED],
+                max_results=max_trials // 3,
+            )
+            all_trials.extend(completed)
+
+        # Fetch terminated trials (failures)
+        terminated = await client.search_trials(
+            phase=[TrialPhase.PHASE_2, TrialPhase.PHASE_3],
+            status=[TrialStatus.TERMINATED],
+            max_results=max_trials // 3,
+        )
+        all_trials.extend(terminated)
+
+        logger.info(f"Fetched {len(all_trials)} trials total")
+
+    # Label trials using improved labeling logic
     trials = []
     labels = []
 
-    async with ClinicalTrialsClient() as client:
-        # Fetch completed Phase 3 trials (most likely to have outcomes)
-        completed_trials = await client.search_trials(
-            phase=[TrialPhase.PHASE_3],
-            status=[TrialStatus.COMPLETED],
-            max_results=max_trials,
-        )
+    for trial in all_trials:
+        label = determine_outcome(trial)
 
-        logger.info(f"Fetched {len(completed_trials)} completed trials")
-
-        for trial in completed_trials:
+        if label is not None:  # Skip trials without sufficient data
             trials.append(trial)
-
-            # In production: Label based on actual outcomes
-            # For now, use has_results as proxy (imperfect but demonstrates concept)
-            label = 1 if trial.has_results else 0
             labels.append(label)
 
-    success_rate = sum(labels) / len(labels) if labels else 0
-    logger.info(f"Training data: {len(trials)} trials, {success_rate:.1%} success rate")
+    # Log labeling statistics
+    logger.info("")
+    log_labeling_report(all_trials)
+
+    logger.info(f"\nUsable training data: {len(trials)} trials (labeled)")
+    logger.info(f"Success: {sum(labels)} | Failure: {len(labels) - sum(labels)}")
 
     return trials, labels
 

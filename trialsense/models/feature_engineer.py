@@ -155,6 +155,38 @@ FEATURE_PROMPTS = {
         "required": True,
         "help": "e.g., 'Oncology', 'Cardiovascular', 'Neurology'",
     },
+    "has_adaptive_design": {
+        "question": "Does this trial use an adaptive design?",
+        "type": "boolean",
+        "default": False,
+        "required": False,
+        "help": (
+            "Adaptive trials can modify aspects like sample size, "
+            "treatment arms, or eligibility during the trial based on interim results. "
+            "Examples: basket trials, umbrella trials, platform trials."
+        ),
+    },
+    "biomarker_driven": {
+        "question": "Is this a biomarker-driven trial?",
+        "type": "boolean",
+        "default": False,
+        "required": False,
+        "help": (
+            "Biomarker-driven trials use companion diagnostics or genomic markers "
+            "to stratify patients or guide treatment selection. "
+            "More common in oncology and precision medicine."
+        ),
+    },
+    "has_patient_reported_outcomes": {
+        "question": "Does the trial include patient-reported outcomes (PROs)?",
+        "type": "boolean",
+        "default": False,
+        "required": False,
+        "help": (
+            "PROs measure quality of life, symptoms, or functional status "
+            "as reported by patients. Increasingly important for FDA approvals."
+        ),
+    },
 }
 
 
@@ -259,6 +291,11 @@ class FeatureEngineer:
             trial.conditions[0].name if trial.conditions else "Unknown"
         )
 
+        # Advanced trial design features
+        features["has_adaptive_design"] = self._detect_adaptive_design(trial)
+        features["biomarker_driven"] = self._detect_biomarker_driven(trial)
+        features["has_patient_reported_outcomes"] = self._detect_pro(trial)
+
         # Override with user inputs if provided
         if user_inputs:
             features.update(user_inputs)
@@ -342,6 +379,11 @@ class FeatureEngineer:
         else:
             features["therapeutic_area"] = None
 
+        # Advanced trial design features (default to 0 for partial data)
+        features["has_adaptive_design"] = trial_data.get("has_adaptive_design", 0)
+        features["biomarker_driven"] = trial_data.get("biomarker_driven", 0)
+        features["has_patient_reported_outcomes"] = trial_data.get("has_patient_reported_outcomes", 0)
+
         # Override/fill with user inputs
         if user_inputs:
             for key, value in user_inputs.items():
@@ -412,6 +454,9 @@ class FeatureEngineer:
             "num_collaborators": 0,
             "is_interventional": 1,
             "criteria_length": 100,
+            "has_adaptive_design": 0,
+            "biomarker_driven": 0,
+            "has_patient_reported_outcomes": 0,
         }
 
         for feature_name, default_value in defaults.items():
@@ -592,3 +637,108 @@ class FeatureEngineer:
             json.dump(schema_data, f, indent=2)
 
         logger.info(f"Saved feature schema to {schema_path}")
+
+    def _detect_adaptive_design(self, trial: ClinicalTrial) -> int:
+        """
+        Detect if trial uses adaptive design based on keywords.
+
+        Looks for mentions of: basket, umbrella, platform, master protocol,
+        adaptive, interim analysis with adaptation.
+
+        Args:
+            trial: ClinicalTrial object
+
+        Returns:
+            1 if adaptive design detected, 0 otherwise
+        """
+        # Check title and description for keywords
+        text_to_search = " ".join([
+            trial.title.lower() if trial.title else "",
+            trial.brief_summary.lower() if trial.brief_summary else "",
+            trial.detailed_description.lower() if trial.detailed_description else "",
+        ])
+
+        adaptive_keywords = [
+            "adaptive",
+            "basket",
+            "umbrella",
+            "platform",
+            "master protocol",
+            "seamless",
+            "group sequential",
+            "interim adaptation",
+        ]
+
+        return 1 if any(kw in text_to_search for kw in adaptive_keywords) else 0
+
+    def _detect_biomarker_driven(self, trial: ClinicalTrial) -> int:
+        """
+        Detect if trial is biomarker-driven.
+
+        Looks for mentions of: biomarker, companion diagnostic, genomic,
+        molecular, PD-L1, HER2, EGFR, etc.
+
+        Args:
+            trial: ClinicalTrial object
+
+        Returns:
+            1 if biomarker-driven detected, 0 otherwise
+        """
+        text_to_search = " ".join([
+            trial.title.lower() if trial.title else "",
+            trial.brief_summary.lower() if trial.brief_summary else "",
+            trial.eligibility_criteria.lower() if trial.eligibility_criteria else "",
+        ])
+
+        biomarker_keywords = [
+            "biomarker",
+            "companion diagnostic",
+            "genomic",
+            "molecular",
+            "pd-l1",
+            "her2",
+            "egfr",
+            "kras",
+            "braf",
+            "alk",
+            "gene expression",
+            "mutation",
+            "precision medicine",
+            "targeted therapy",
+        ]
+
+        return 1 if any(kw in text_to_search for kw in biomarker_keywords) else 0
+
+    def _detect_pro(self, trial: ClinicalTrial) -> int:
+        """
+        Detect if trial includes patient-reported outcomes (PROs).
+
+        Looks for mentions of: quality of life, QOL, PRO, patient-reported,
+        symptom score, functional assessment, etc.
+
+        Args:
+            trial: ClinicalTrial object
+
+        Returns:
+            1 if PROs detected, 0 otherwise
+        """
+        # Check secondary outcomes for PRO keywords
+        outcomes_text = " ".join([
+            trial.primary_outcome.lower() if trial.primary_outcome else "",
+            " ".join([so.lower() for so in trial.secondary_outcomes if isinstance(so, str)]),
+        ])
+
+        pro_keywords = [
+            "quality of life",
+            "qol",
+            "patient-reported",
+            "pro ",
+            "eortc",
+            "fact-",
+            "promis",
+            "symptom",
+            "functional assessment",
+            "health-related quality",
+        ]
+
+        return 1 if any(kw in outcomes_text for kw in pro_keywords) else 0
