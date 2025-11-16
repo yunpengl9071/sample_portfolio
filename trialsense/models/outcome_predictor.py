@@ -389,6 +389,9 @@ class OutcomePredictor:
                 trial_obj = parser.create_trial_object(trial)
                 return self._default_prediction(trial_obj)
 
+        # Fill in defaults for optional features (e.g., num_locations estimation)
+        features = self.feature_engineer.fill_defaults(features)
+
         # Validate features are complete
         missing = self.feature_engineer.validate_features(features)
         if missing:

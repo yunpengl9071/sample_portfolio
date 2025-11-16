@@ -2,12 +2,21 @@
 """
 Script to train the outcome prediction model on historical trial data.
 
-This is a template that would be populated with real data in production.
+This script:
+1. Fetches completed trials from ClinicalTrials.gov
+2. Extracts features using FeatureEngineer
+3. Trains XGBoost model with train/validation/test split
+4. Saves model, feature schema, and test set for benchmarking
+5. Evaluates performance on held-out test set
+
+The test set is saved so users can benchmark predictions on known outcomes.
 """
 
 import asyncio
 from pathlib import Path
 from datetime import datetime
+import json
+import pickle
 
 from trialsense.data.clinical_trials_client import ClinicalTrialsClient
 from trialsense.data.models import TrialPhase, TrialStatus
@@ -61,19 +70,25 @@ async def fetch_training_data(max_trials: int = 1000) -> tuple[list, list]:
     return trials, labels
 
 
-def train_and_save_model(trials: list, labels: list, model_path: str = "models/outcome_model.json"):
+def train_and_save_model(
+    trials: list,
+    labels: list,
+    model_path: str = "models/outcome_model.json",
+    schema_path: str = "models/feature_schema.json",
+):
     """
-    Train the outcome prediction model and save it.
+    Train the outcome prediction model and save it with feature schema.
 
     Args:
         trials: List of ClinicalTrial objects
         labels: Binary labels (1=success, 0=failure)
         model_path: Path to save trained model
+        schema_path: Path to save feature schema
     """
     logger.info("Training outcome prediction model...")
 
-    # Initialize predictor
-    predictor = OutcomePredictor()
+    # Initialize predictor with feature engineer
+    predictor = OutcomePredictor(schema_path=None)  # Will create new schema
 
     # Train with validation split
     metrics = predictor.train(
@@ -87,10 +102,70 @@ def train_and_save_model(trials: list, labels: list, model_path: str = "models/o
     # Save model
     Path(model_path).parent.mkdir(parents=True, exist_ok=True)
     predictor.save(model_path)
+    logger.info(f"✓ Model saved to {model_path}")
 
-    logger.info(f"Model saved to {model_path}")
+    # Save feature schema
+    feature_importance = predictor.model.feature_importances_
+    feature_importance_dict = dict(zip(predictor.feature_names, feature_importance))
+
+    predictor.feature_engineer.save_schema(
+        schema_path=schema_path,
+        version="1.0.0",
+        model_type="XGBoost",
+        n_trials=len(trials),
+        feature_importance=feature_importance_dict,
+    )
+    logger.info(f"✓ Feature schema saved to {schema_path}")
 
     return predictor, metrics
+
+
+def save_test_set(
+    test_trials: list,
+    test_labels: list,
+    test_set_path: str = "models/test_set.pkl",
+    test_metadata_path: str = "models/test_set_metadata.json",
+):
+    """
+    Save test set for benchmarking.
+
+    Users can load this to test predictions on trials with known outcomes.
+
+    Args:
+        test_trials: List of test trials
+        test_labels: Corresponding labels
+        test_set_path: Path to save pickled test set
+        test_metadata_path: Path to save test set metadata
+    """
+    logger.info("Saving test set for benchmarking...")
+
+    # Save trials and labels as pickle
+    test_data = {
+        "trials": test_trials,
+        "labels": test_labels,
+    }
+
+    Path(test_set_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(test_set_path, "wb") as f:
+        pickle.dump(test_data, f)
+
+    logger.info(f"✓ Test set saved to {test_set_path}")
+
+    # Save metadata as JSON
+    metadata = {
+        "n_trials": len(test_trials),
+        "n_success": sum(test_labels),
+        "n_failure": len(test_labels) - sum(test_labels),
+        "success_rate": sum(test_labels) / len(test_labels) if test_labels else 0,
+        "trial_ids": [trial.nct_id for trial in test_trials],
+        "created_at": datetime.now().isoformat(),
+    }
+
+    with open(test_metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    logger.info(f"✓ Test metadata saved to {test_metadata_path}")
+    logger.info(f"  - {metadata['n_trials']} trials ({metadata['success_rate']:.1%} success rate)")
 
 
 def evaluate_model(predictor: OutcomePredictor, test_trials: list, test_labels: list):
@@ -102,7 +177,7 @@ def evaluate_model(predictor: OutcomePredictor, test_trials: list, test_labels: 
         test_trials: Test trials
         test_labels: Test labels
     """
-    logger.info("Evaluating model...")
+    logger.info("Evaluating model on test set...")
 
     predictions = []
     probabilities = []
@@ -162,24 +237,35 @@ async def main():
     logger.info(f"  Test:  {len(test_trials)} trials")
 
     # 3. Train model
-    logger.info("\n[3/4] Training model...")
+    logger.info("\n[3/5] Training model...")
     predictor, train_metrics = train_and_save_model(
         trials=train_trials,
         labels=train_labels,
     )
 
-    # 4. Evaluate
-    logger.info("\n[4/4] Evaluating model...")
+    # 4. Save test set for benchmarking
+    logger.info("\n[4/5] Saving test set for benchmarking...")
+    save_test_set(test_trials, test_labels)
+
+    # 5. Evaluate
+    logger.info("\n[5/5] Evaluating model...")
     test_metrics = evaluate_model(predictor, test_trials, test_labels)
 
     # Summary
     logger.info("\n" + "="*80)
     logger.info("Training Complete!")
     logger.info("="*80)
-    logger.info(f"Model saved to: models/outcome_model.json")
+    logger.info(f"✓ Model saved to: models/outcome_model.json")
+    logger.info(f"✓ Feature schema saved to: models/feature_schema.json")
+    logger.info(f"✓ Test set saved to: models/test_set.pkl")
+    logger.info(f"")
     logger.info(f"Training samples: {len(train_trials)}")
+    logger.info(f"Test samples: {len(test_trials)}")
     logger.info(f"Test AUC: {test_metrics['auc']:.3f}")
     logger.info(f"Timestamp: {datetime.now().isoformat()}")
+    logger.info(f"")
+    logger.info(f"Users can now benchmark predictions using the test set:")
+    logger.info(f"  python scripts/benchmark_model.py")
 
 
 if __name__ == "__main__":

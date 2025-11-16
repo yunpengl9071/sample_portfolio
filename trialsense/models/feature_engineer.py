@@ -105,8 +105,17 @@ FEATURE_PROMPTS = {
         "type": "number",
         "min": 1,
         "max": 1000,
-        "required": True,
-        "help": "Multi-site trials have higher recruitment potential but increase coordination complexity.",
+        "required": False,
+        "default": None,
+        "help": (
+            "Number of trial sites/locations. If uncertain during design phase, "
+            "we can estimate based on enrollment target:\n"
+            "  • <50 participants: typically 1-3 sites\n"
+            "  • 50-200 participants: typically 5-15 sites\n"
+            "  • 200-500 participants: typically 15-40 sites\n"
+            "  • >500 participants: typically 40+ sites\n"
+            "Multi-site trials have higher recruitment but increase coordination complexity."
+        ),
     },
     "num_conditions": {
         "question": "How many conditions/diseases are being studied?",
@@ -183,7 +192,7 @@ class FeatureEngineer:
             "is_randomized",
             "is_blinded",
             "num_interventions",
-            "num_locations",
+            # num_locations is optional - can be estimated from enrollment
             "therapeutic_area",
         ]
         logger.info("Initialized with default feature set")
@@ -409,7 +418,42 @@ class FeatureEngineer:
             if feature_name not in features or features[feature_name] is None:
                 features[feature_name] = default_value
 
+        # Special handling for num_locations: estimate from enrollment if missing
+        if "num_locations" not in features or features["num_locations"] is None:
+            features["num_locations"] = self.estimate_num_locations(
+                features.get("enrollment", 100)
+            )
+            logger.info(
+                f"Estimated num_locations={features['num_locations']} "
+                f"based on enrollment={features.get('enrollment')}"
+            )
+
+        # Derived feature: is_multicenter
+        if "is_multicenter" not in features or features["is_multicenter"] is None:
+            features["is_multicenter"] = 1 if features.get("num_locations", 1) > 1 else 0
+
         return features
+
+    def estimate_num_locations(self, enrollment: int) -> int:
+        """
+        Estimate number of locations based on enrollment target.
+
+        Rule of thumb: 10-15 patients per site on average.
+
+        Args:
+            enrollment: Target enrollment
+
+        Returns:
+            Estimated number of sites
+        """
+        if enrollment < 50:
+            return 2  # 1-3 sites for small trials
+        elif enrollment < 200:
+            return max(5, enrollment // 15)  # ~15 patients/site
+        elif enrollment < 500:
+            return max(15, enrollment // 12)  # ~12 patients/site
+        else:
+            return max(40, enrollment // 10)  # ~10 patients/site for large trials
 
     def to_numpy(
         self, features_list: List[Dict[str, Any]], feature_order: Optional[List[str]] = None
