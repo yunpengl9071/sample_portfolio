@@ -35,19 +35,22 @@ class OutcomePredictor:
     Uses XGBoost classifier with SHAP for interpretability.
     Predicts likelihood of trial completion with positive results.
 
-    Features:
-    - Sponsor track record
-    - Trial phase and design
-    - Enrollment metrics
-    - Therapeutic area
-    - Endpoint complexity
-    - Historical patterns
+    Training vs. Inference:
+    - Training: Done once offline (10-50 minutes)
+    - Inference: Fast predictions (<0.1 seconds per trial)
+
+    The model can work in two modes:
+    1. With pre-trained model: Full ML predictions
+    2. Without training: Returns heuristic-based estimates (demo mode)
 
     Example:
-        >>> predictor = OutcomePredictor()
-        >>> predictor.load("models/outcome_model.json")
+        >>> # Option 1: Load pre-trained model
+        >>> predictor = OutcomePredictor("models/outcome_model.json")
         >>> result = predictor.predict(trial)
-        >>> print(f"Success probability: {result.success_probability:.2%}")
+
+        >>> # Option 2: Use without training (demo mode)
+        >>> predictor = OutcomePredictor()  # No model loaded
+        >>> result = predictor.predict(trial)  # Returns heuristic estimate
     """
 
     def __init__(self, model_path: Optional[str] = None):
@@ -55,17 +58,23 @@ class OutcomePredictor:
         Initialize the outcome predictor.
 
         Args:
-            model_path: Path to saved model file
+            model_path: Path to saved model file (optional)
         """
         self.model: Optional[xgb.XGBClassifier] = None
         self.explainer: Optional[shap.TreeExplainer] = None
         self.feature_names: list[str] = []
         self.label_encoders: dict[str, LabelEncoder] = {}
+        self.is_trained = False
 
         if model_path and Path(model_path).exists():
             self.load(model_path)
+            self.is_trained = True
+            logger.info(f"✓ Loaded pre-trained model from {model_path}")
         else:
             self._initialize_model()
+            if model_path:
+                logger.warning(f"⚠ Model file not found: {model_path}")
+            logger.info("Running in demo mode - predictions will use heuristics")
 
     def _initialize_model(self) -> None:
         """Initialize a new XGBoost model with default parameters."""
@@ -79,7 +88,84 @@ class OutcomePredictor:
             random_state=42,
             eval_metric="auc",
         )
-        logger.info("Initialized new XGBoost model")
+        logger.info("Initialized new XGBoost model (untrained)")
+
+    def _default_prediction(self, trial: ClinicalTrial) -> PredictionResult:
+        """
+        Generate heuristic-based prediction when model is not trained.
+
+        Uses simple rules based on trial characteristics.
+        Good enough for demo purposes.
+
+        Args:
+            trial: ClinicalTrial object
+
+        Returns:
+            PredictionResult with heuristic estimates
+        """
+        # Simple heuristic based on trial characteristics
+        base_prob = 0.5
+
+        # Phase bonus (later phases more likely to succeed)
+        phase_bonus = {
+            TrialPhase.PHASE_1: -0.1,
+            TrialPhase.PHASE_2: 0.0,
+            TrialPhase.PHASE_3: 0.1,
+            TrialPhase.PHASE_4: 0.15,
+        }.get(trial.phase, 0.0)
+
+        # Design bonus (good design increases success)
+        design_bonus = 0.0
+        if trial.allocation == "RANDOMIZED":
+            design_bonus += 0.05
+        if trial.masking and trial.masking != "NONE":
+            design_bonus += 0.05
+
+        # Sponsor bonus (industry sponsors often have resources)
+        sponsor_bonus = 0.05 if trial.sponsor.type == "INDUSTRY" else 0.0
+
+        # Enrollment penalty (very large trials are harder)
+        enrollment_penalty = -0.05 if trial.enrollment and trial.enrollment > 1000 else 0.0
+
+        # Calculate final probability
+        prob = base_prob + phase_bonus + design_bonus + sponsor_bonus + enrollment_penalty
+        prob = max(0.2, min(0.8, prob))  # Clamp between 20-80%
+
+        # Generate mock feature importance
+        feature_importance = {
+            "phase_numeric": phase_bonus,
+            "is_randomized": 0.05 if trial.allocation == "RANDOMIZED" else -0.05,
+            "enrollment_log": enrollment_penalty,
+            "sponsor_type": sponsor_bonus,
+        }
+
+        # Identify factors
+        positive_factors = []
+        risk_factors = []
+
+        if trial.phase in [TrialPhase.PHASE_3, TrialPhase.PHASE_4]:
+            positive_factors.append(f"Later phase trial ({trial.phase})")
+        if trial.allocation == "RANDOMIZED":
+            positive_factors.append("Randomized design strengthens evidence")
+        if trial.sponsor.type == "INDUSTRY":
+            positive_factors.append("Industry sponsor (typically well-resourced)")
+
+        if trial.enrollment and trial.enrollment > 1000:
+            risk_factors.append(f"Large enrollment target (n={trial.enrollment})")
+        if not trial.allocation:
+            risk_factors.append("No allocation specified")
+
+        return PredictionResult(
+            success_probability=prob,
+            confidence_interval=(max(0.0, prob - 0.1), min(1.0, prob + 0.1)),
+            feature_importance=feature_importance,
+            shap_explanation={
+                "base_value": base_prob,
+                "note": "Using heuristic-based prediction (model not trained)",
+            },
+            risk_factors=risk_factors or ["None identified"],
+            positive_factors=positive_factors or ["None identified"],
+        )
 
     def _extract_features(self, trial: ClinicalTrial) -> dict[str, Any]:
         """
@@ -206,6 +292,9 @@ class OutcomePredictor:
         """
         Train the model on historical trial data.
 
+        This is a ONE-TIME operation (or periodic refresh).
+        NOT run on every user query!
+
         Args:
             trials: List of ClinicalTrial objects
             labels: Binary labels (1 = success, 0 = failure)
@@ -237,6 +326,7 @@ class OutcomePredictor:
 
         # Initialize SHAP explainer
         self.explainer = shap.TreeExplainer(self.model)
+        self.is_trained = True
 
         # Evaluate
         train_score = self.model.score(X_train, y_train)
@@ -252,7 +342,9 @@ class OutcomePredictor:
 
     def predict(self, trial: ClinicalTrial) -> PredictionResult:
         """
-        Predict outcome for a trial.
+        Predict outcome for a trial (FAST - <0.1 seconds).
+
+        This runs on every user query. No training happens here!
 
         Args:
             trial: ClinicalTrial object
@@ -261,23 +353,27 @@ class OutcomePredictor:
             PredictionResult with probability and explanations
         """
         if not self.model:
-            raise ValueError("Model not trained or loaded")
+            raise ValueError("Model not initialized")
 
-        # Extract and prepare features
+        # If model not trained, return heuristic prediction
+        if not self.is_trained:
+            logger.debug("Using heuristic prediction (model not trained)")
+            return self._default_prediction(trial)
+
+        # Extract and prepare features (fast)
         features = self._extract_features(trial)
         X = self._prepare_features_for_model(features, fit=False)
         X_reshaped = X.reshape(1, -1)
 
-        # Predict probability
+        # Predict probability (very fast)
         proba = self.model.predict_proba(X_reshaped)[0][1]
 
-        # Calculate confidence interval (bootstrap-based estimate)
-        # Simplified version - in production would use proper bootstrapping
+        # Calculate confidence interval
         ci_width = 0.1
         ci_lower = max(0.0, proba - ci_width)
         ci_upper = min(1.0, proba + ci_width)
 
-        # Get SHAP values
+        # Get SHAP values (fast)
         shap_values = None
         feature_importance = {}
 
@@ -347,20 +443,24 @@ class OutcomePredictor:
         return risk_factors, positive_factors
 
     def save(self, path: str) -> None:
-        """Save model to file."""
+        """Save trained model to file."""
         if not self.model:
             raise ValueError("No model to save")
+
+        if not self.is_trained:
+            logger.warning("Saving untrained model")
 
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.model.save_model(path)
         logger.info(f"Model saved to {path}")
 
     def load(self, path: str) -> None:
-        """Load model from file."""
+        """Load trained model from file."""
         if not Path(path).exists():
             raise FileNotFoundError(f"Model file not found: {path}")
 
         self.model = xgb.XGBClassifier()
         self.model.load_model(path)
         self.explainer = shap.TreeExplainer(self.model)
+        self.is_trained = True
         logger.info(f"Model loaded from {path}")
